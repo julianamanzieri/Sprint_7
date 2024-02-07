@@ -15,5 +15,18 @@ services:
       - ./mysql:/docker-entrypoint-initdb.d
     restart: always
 
+  mongo:
+    image: mongo:latest
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=chat
+      - MONGO_INITDB_ROOT_PASSWORD=admin # Ajuste para o valor real que você deseja usar
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo:/docker-entrypoint-initdb.d
+    restart: always
+
 volumes:
   mysql-data:
+  mongo-data:
