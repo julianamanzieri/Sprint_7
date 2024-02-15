@@ -1,4 +1,4 @@
-import Server from './domain/config/server';
+import Server from './config/server';
 
 const server = new Server();
 

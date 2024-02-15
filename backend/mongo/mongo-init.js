@@ -2,5 +2,5 @@
 db = db.getSiblingDB('api_db');
 
 db.createCollection('messages');
-db.createCollection('rooms');
+db.createCollection('chatRooms');
 db.createCollection('users');
