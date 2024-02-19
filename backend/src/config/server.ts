@@ -100,25 +100,29 @@ class Server {
         }
       });
 
-      // Unifica os manipuladores de evento join_room
-      socket.on('join_room', async (roomId: string) => {
-        // Verifica se a sala existe
-        if (!this.rooms[roomId]) {
-          console.log(`The room ${roomId} doesn't exist`);
-          socket.emit('error', `The room ${roomId} doesn't exist`);
+      socket.on('join_room', async (roomName: string) => {
+        // Verifica se a sala existe usando o nome
+        const room = await this.chatRoomRepository.findRoomByName(roomName);
+
+        if (!room) {
+          console.log(`The room ${roomName} does not exist`);
+          socket.emit('error', `La sala ${roomName} no existe`);
           return;
         }
-        // O usuário se junta à sala
-        socket.join(roomId);
-        console.log(`User ${socket.id} joined room ${roomId}`);
 
-        // Notifica outros usuários na sala
-        socket.to(roomId).emit('user_joined', { userId: socket.id, roomId });
+        // Se a sala existir, junte o usuário à sala usando o nome como identificador
+        socket.join(roomName);
+        console.log(`User ${socket.id} joined room ${roomName}`);
 
-        // Busca e envia as mensagens anteriores da sala
+        // Notificar outros usuários na sala sobre a chegada de um novo usuário
+        this.io
+          .to(roomName)
+          .emit('user_joined', { userId: socket.id, roomName });
+
         try {
-          const messages =
-            await this.messageRepository.listMessagesByChatId(roomId);
+          const messages = await this.messageRepository.listMessagesByChatId(
+            room._id.toString()
+          );
           socket.emit('previous_messages', messages);
         } catch (error) {
           console.error('Error fetching previous messages:', error);
@@ -148,12 +152,7 @@ class Server {
               messageDetails.senderId,
               messageDetails.text
             );
-            // const newMessage = new Message({
-            //   // Aqui você usa o modelo `Message` que importou
-            //   chatId: messageDetails.chatId,
-            //   senderId: messageDetails.senderId,
-            //   text: messageDetails.text
-            // });
+
             await newMessage.save();
             this.io.to(messageDetails.chatId).emit('new_message', newMessage);
           } catch (error) {

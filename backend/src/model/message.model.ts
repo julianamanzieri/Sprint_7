@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 interface IMessage extends Document {
-  id: string;
+  // id: string;
   chatId: string;
   senderId: string;
   text: string;
@@ -9,7 +9,7 @@ interface IMessage extends Document {
 }
 
 const MessageSchema: Schema = new Schema({
-  id: { type: String, required: true },
+  // id: { type: String, required: true },
   chatId: { type: String, required: true },
   senderId: { type: String, required: true },
   text: { type: String, required: true },

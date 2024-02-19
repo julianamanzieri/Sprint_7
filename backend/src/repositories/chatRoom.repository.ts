@@ -44,6 +44,10 @@ class ChatRoomRepository {
     }
     return chatRoom;
   }
+
+  async findRoomByName(name: string) {
+    return await ChatRoom.findOne({ name: name });
+  }
 }
 
 export default ChatRoomRepository;
