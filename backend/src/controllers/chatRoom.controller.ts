@@ -13,6 +13,7 @@ class ChatRoomController {
 
   //   POST/chatroom - cria uma sala
   public async createChatRoom(req: Request, res: Response): Promise<void> {
+    console.log('Create chatRoom Controller');
     try {
       console.log('controller chatrooms');
       if (!this.chatRoomRepository) {

@@ -13,6 +13,7 @@ import routerMessages from '../routes/message.routes';
 import UserRepository from '../repositories/user.repository';
 import ChatRoomRepository from '../repositories/chatRoom.repository';
 import MessageRepository from '../repositories/message.repository';
+// import Message from '../model/message.model';
 
 const logger = (req: Request, res: Response, next: NextFunction) => {
   console.log(`
@@ -71,50 +72,59 @@ class Server {
     this.io.on('connection', (socket: Socket) => {
       console.log('A user has connected');
       // console.log(socket);
-      socket.on('create_room', (roomName) => {
-        this.rooms[roomName] = { members: [] };
-        socket.join(roomName);
-        this.io.emit('room_list', Object.keys(this.rooms));
+      socket.on('create_room', async (roomName: string) => {
+        try {
+          const newChatRoom = await this.chatRoomRepository.createChatRoom(
+            roomName,
+            'userID'
+          );
+          this.rooms[newChatRoom.name] = { members: [] };
+          socket.join(newChatRoom.name);
+          this.io.emit('room_list', Object.keys(this.rooms));
+        } catch (error) {
+          console.error('Error creating room:', error);
+          socket.emit('error');
+        }
       });
 
-      // socket.on('create_room', async (roomDetails) => {
-      //   console.log('Create room');
-      //   try {
-      //     const newRoom = await this.chatRoomRepository.createChatRoom(
-      //       roomDetails.name,
-      //       roomDetails.createdBy,
-      //       roomDetails.members
-      //     );
-      //     console.log('Create romm', newRoom);
-      //     this.io.emit('room_created', newRoom);
-      //   } catch (error) {
-      //     console.error('Error creating room:', error);
-      //     socket.emit('error', 'Failed to create room');
-      //   }
-      // });
-
-      socket.on('request_room_list', () => {
-        socket.emit('room_list', Object.keys(this.rooms));
+      socket.on('request_room_list', async () => {
+        try {
+          const rooms = await this.chatRoomRepository.showChatRoomsList();
+          socket.emit(
+            'room_list',
+            rooms.map((room) => room.name)
+          ); // Assume que cada sala tem uma propriedade 'name'
+        } catch (error) {
+          console.error('Error fetching room list:', error);
+          socket.emit('error', 'Failed to fetch room list');
+        }
       });
 
-      socket.on('join_room', (room: string) => {
-        if (!this.rooms[room]) {
-          socket.emit(`error`, `The room ${room} doesn't exist`);
+      // Unifica os manipuladores de evento join_room
+      socket.on('join_room', async (roomId: string) => {
+        // Verifica se a sala existe
+        if (!this.rooms[roomId]) {
+          console.log(`The room ${roomId} doesn't exist`);
+          socket.emit('error', `The room ${roomId} doesn't exist`);
           return;
         }
-        socket.join(room);
-        console.log(`User has joined the room ${room}`);
-      });
-
-      socket.on('join_room', (roomId) => {
+        // O usuário se junta à sala
         socket.join(roomId);
         console.log(`User ${socket.id} joined room ${roomId}`);
-      });
 
-      // socket.on('join_room', (roomId) => {
-      //   socket.join(roomId);
-      //   this.io.to(roomId).emit('user_joined', { userId: socket.id, roomId });
-      // });
+        // Notifica outros usuários na sala
+        socket.to(roomId).emit('user_joined', { userId: socket.id, roomId });
+
+        // Busca e envia as mensagens anteriores da sala
+        try {
+          const messages =
+            await this.messageRepository.listMessagesByChatId(roomId);
+          socket.emit('previous_messages', messages);
+        } catch (error) {
+          console.error('Error fetching previous messages:', error);
+          socket.emit('error', 'Failed to fetch previous messages');
+        }
+      });
 
       socket.on('leave_room', (roomId) => {
         socket.leave(roomId);
@@ -125,35 +135,33 @@ class Server {
         this.io.to(room).emit('chat_message', { userName, message });
       });
 
-      // socket.on('chat_message', async ({ room, message, userName }) => {
-      //   // Enviar a mensagem para o banco de dados
-      //   try {
-      //     const newMessage = await this.messageRepository.addMessage(
-      //       room,
-      //       userName,
-      //       message
-      //     );
-      //     // Emitir a nova mensagem para todos os usuários na sala
-      //     this.io.to(room).emit('new_message', newMessage);
-      //   } catch (error) {
-      //     console.error('Error sending message:', error);
-      //     socket.emit('error', 'Failed to send message');
-      //   }
-      // });
-
-      socket.on('send_message', async (messageDetails) => {
-        try {
-          const newMessage = await this.messageRepository.addMessage(
-            messageDetails.chatId,
-            messageDetails.senderId,
-            messageDetails.text
-          );
-          this.io.to(messageDetails.chatId).emit('new_message', newMessage);
-        } catch (error) {
-          console.error('Error sending message:', error);
-          socket.emit('error', 'Failed to send message');
+      socket.on(
+        'send_message',
+        async (messageDetails: {
+          chatId: string;
+          senderId: string;
+          text: string;
+        }) => {
+          try {
+            const newMessage = await this.messageRepository.addMessage(
+              messageDetails.chatId,
+              messageDetails.senderId,
+              messageDetails.text
+            );
+            // const newMessage = new Message({
+            //   // Aqui você usa o modelo `Message` que importou
+            //   chatId: messageDetails.chatId,
+            //   senderId: messageDetails.senderId,
+            //   text: messageDetails.text
+            // });
+            await newMessage.save();
+            this.io.to(messageDetails.chatId).emit('new_message', newMessage);
+          } catch (error) {
+            console.error('Error sending message:', error);
+            socket.emit('error', 'Failed to send message');
+          }
         }
-      });
+      );
 
       socket.on('disconnect', () => {
         console.log('A user has disconnected');
