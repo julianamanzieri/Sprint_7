@@ -71,6 +71,7 @@ class Server {
     this.io.on('connection', (socket: Socket) => {
       console.log('A user has connected');
       // console.log(socket);
+
       socket.on('create_room', async (roomName: string) => {
         try {
           const newChatRoom = await this.chatRoomRepository.createChatRoom(
@@ -99,60 +100,60 @@ class Server {
         }
       });
 
-      socket.on('join_room', async (roomName: string) => {
-        console.log(`Intento de unirse a la sala: ${roomName}`);
-
-        try {
-          // Verifica si la sala existe usando el nombre
-          const room = await this.chatRoomRepository.findRoomByName(roomName);
-
-          if (!room) {
-            console.log(`La sala ${roomName} no existe`);
-            socket.emit('error', `La sala ${roomName} no existe`);
-            return;
-          }
-
-          // Si la sala existe, une al usuario a la sala usando el nombre como identificador
-          socket.join(roomName);
-          console.log(`Usuario ${socket.id} se ha unido a la sala ${roomName}`);
-
-          // Recupera y emite los mensajes existentes de la sala
-          const messages = await this.messageRepository.listMessagesByChatId(
-            room._id.toString()
-          );
-          console.log(messages, 'messagesserver');
-          socket.emit('existing_messages', messages);
-        } catch (error) {
-          console.error(`Error al unirse a la sala ${roomName}:`, error);
-          socket.emit('error', 'Ocurrió un error al intentar unirse a la sala');
-        }
-      });
-
       // socket.on('join_room', async (roomName: string) => {
-      //   // Verifica se a sala existe usando o nome
-      //   const room = await this.chatRoomRepository.findRoomByName(roomName);
+      //   console.log(`Intento de unirse a la sala: ${roomName}`);
 
-      //   if (!room) {
-      //     console.log(`The room ${roomName} does not exist`);
-      //     socket.emit('error', `The room ${roomName} not exist`);
-      //     return;
-      //   }
-      //   // Se a sala existir, junte o usuário à sala usando o nome como identificador
-      //   socket.join(roomName);
-      //   console.log(`User ${socket.id} joined room ${roomName}`);
       //   try {
-      //     // socket.join(roomName);
+      //     // Verifica si la sala existe usando el nombre
+      //     const room = await this.chatRoomRepository.findRoomByName(roomName);
+
+      //     if (!room) {
+      //       console.log(`La sala ${roomName} no existe`);
+      //       socket.emit('error', `La sala ${roomName} no existe`);
+      //       return;
+      //     }
+
+      //     // Si la sala existe, une al usuario a la sala usando el nombre como identificador
+      //     socket.join(roomName);
+      //     console.log(`Usuario ${socket.id} se ha unido a la sala ${roomName}`);
+
+      //     // Recupera y emite los mensajes existentes de la sala
       //     const messages = await this.messageRepository.listMessagesByChatId(
       //       room._id.toString()
       //     );
       //     console.log(messages, 'messagesserver');
-
       //     socket.emit('existing_messages', messages);
       //   } catch (error) {
-      //     console.error('Error fetching previous messages:', error);
-      //     socket.emit('error', 'Failed to fetch previous messages');
+      //     console.error(`Error al unirse a la sala ${roomName}:`, error);
+      //     socket.emit('error', 'Ocurrió un error al intentar unirse a la sala');
       //   }
       // });
+
+      socket.on('join_room', async (roomName: string) => {
+        // Verifica se a sala existe usando o nome
+        const room = await this.chatRoomRepository.findRoomByName(roomName);
+
+        if (!room) {
+          console.log(`The room ${roomName} does not exist`);
+          socket.emit('error', `The room ${roomName} not exist`);
+          return;
+        }
+        // Se a sala existir, junte o usuário à sala usando o nome como identificador
+        socket.join(roomName);
+        console.log(`User ${socket.id} joined room ${roomName}`);
+        try {
+          // socket.join(roomName);
+          const messages = await this.messageRepository.listMessagesByChatId(
+            room._id.toString()
+          );
+          console.log(messages, 'messagesserver');
+
+          socket.emit('existing_messages', messages);
+        } catch (error) {
+          console.error('Error fetching previous messages:', error);
+          socket.emit('error', 'Failed to fetch previous messages');
+        }
+      });
 
       socket.on('chat_message', async ({ room, message, userName }) => {
         try {

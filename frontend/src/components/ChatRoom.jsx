@@ -22,16 +22,18 @@ function ChatRoom({ socket, userName }) {
 
     return () => {
       socket.off("chat_message");
+      socket.off("existing_messages");
     };
   }, [roomName, socket]);
 
   const sendMessage = () => {
-    if (!message) {
+    if (message !== "" && message !== undefined && message !== null) {
       socket.emit("chat_message", {
         room: roomName,
         message,
-        userName: userName,
+        username: userName,
       });
+      console.log(message);
       setMessage("");
     }
   };
@@ -58,3 +60,4 @@ function ChatRoom({ socket, userName }) {
 }
 
 export default ChatRoom;
+

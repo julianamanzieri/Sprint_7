@@ -24,3 +24,4 @@ function ChatList({ rooms, handleCreateRoom, userName }) {
 }
 
 export default ChatList;
+

@@ -32,8 +32,9 @@ class MessageRepository {
   // Listar mensagens de uma sala de chat
   async listMessagesByChatId(chatId: string) {
     console.log('messages repo', chatId);
+
     const messages = await Message.find({ chatId: chatId }).sort({
-      createdAt: -1
+      createdAt: 1
     });
     // const messages = await Message.find({ chatId: chatId });
 
