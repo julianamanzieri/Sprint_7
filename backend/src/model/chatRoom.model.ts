@@ -5,7 +5,8 @@ interface IChatRoom extends Document {
   name: string;
   members: string[];
   createdAt: Date;
-  messages: string[];
+  // messages: string[];
+  messages: mongoose.Schema.Types.ObjectId[];
   createdBy: string;
 }
 
@@ -14,7 +15,8 @@ const ChatRoomSchema: Schema = new Schema({
   name: { type: String, required: true },
   members: [{ type: String, required: true }],
   createdAt: { type: Date, default: Date.now },
-  messages: [{ type: String, required: true }],
+  // messages: [{ type: String, required: true }],
+  messages: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Message' }],
   createdBy: { type: String, required: true }
 });
 

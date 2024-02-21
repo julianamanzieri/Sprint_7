@@ -13,7 +13,6 @@ import routerMessages from '../routes/message.routes';
 import UserRepository from '../repositories/user.repository';
 import ChatRoomRepository from '../repositories/chatRoom.repository';
 import MessageRepository from '../repositories/message.repository';
-// import Message from '../model/message.model';
 
 const logger = (req: Request, res: Response, next: NextFunction) => {
   console.log(`
@@ -101,66 +100,127 @@ class Server {
       });
 
       socket.on('join_room', async (roomName: string) => {
-        // Verifica se a sala existe usando o nome
-        const room = await this.chatRoomRepository.findRoomByName(roomName);
-
-        if (!room) {
-          console.log(`The room ${roomName} does not exist`);
-          socket.emit('error', `La sala ${roomName} no existe`);
-          return;
-        }
-
-        // Se a sala existir, junte o usuário à sala usando o nome como identificador
-        socket.join(roomName);
-        console.log(`User ${socket.id} joined room ${roomName}`);
-
-        // Notificar outros usuários na sala sobre a chegada de um novo usuário
-        this.io
-          .to(roomName)
-          .emit('user_joined', { userId: socket.id, roomName });
+        console.log(`Intento de unirse a la sala: ${roomName}`);
 
         try {
+          // Verifica si la sala existe usando el nombre
+          const room = await this.chatRoomRepository.findRoomByName(roomName);
+
+          if (!room) {
+            console.log(`La sala ${roomName} no existe`);
+            socket.emit('error', `La sala ${roomName} no existe`);
+            return;
+          }
+
+          // Si la sala existe, une al usuario a la sala usando el nombre como identificador
+          socket.join(roomName);
+          console.log(`Usuario ${socket.id} se ha unido a la sala ${roomName}`);
+
+          // Recupera y emite los mensajes existentes de la sala
           const messages = await this.messageRepository.listMessagesByChatId(
             room._id.toString()
           );
-          socket.emit('previous_messages', messages);
+          console.log(messages, 'messagesserver');
+          socket.emit('existing_messages', messages);
         } catch (error) {
-          console.error('Error fetching previous messages:', error);
-          socket.emit('error', 'Failed to fetch previous messages');
+          console.error(`Error al unirse a la sala ${roomName}:`, error);
+          socket.emit('error', 'Ocurrió un error al intentar unirse a la sala');
         }
       });
 
-      socket.on('leave_room', (roomId) => {
-        socket.leave(roomId);
-        this.io.to(roomId).emit('user_left', { userId: socket.id, roomId });
-      });
+      // socket.on('join_room', async (roomName: string) => {
+      //   // Verifica se a sala existe usando o nome
+      //   const room = await this.chatRoomRepository.findRoomByName(roomName);
 
-      socket.on('chat_message', ({ room, message, userName }) => {
-        this.io.to(room).emit('chat_message', { userName, message });
-      });
+      //   if (!room) {
+      //     console.log(`The room ${roomName} does not exist`);
+      //     socket.emit('error', `The room ${roomName} not exist`);
+      //     return;
+      //   }
+      //   // Se a sala existir, junte o usuário à sala usando o nome como identificador
+      //   socket.join(roomName);
+      //   console.log(`User ${socket.id} joined room ${roomName}`);
+      //   try {
+      //     // socket.join(roomName);
+      //     const messages = await this.messageRepository.listMessagesByChatId(
+      //       room._id.toString()
+      //     );
+      //     console.log(messages, 'messagesserver');
 
-      socket.on(
-        'send_message',
-        async (messageDetails: {
-          chatId: string;
-          senderId: string;
-          text: string;
-        }) => {
-          try {
-            const newMessage = await this.messageRepository.addMessage(
-              messageDetails.chatId,
-              messageDetails.senderId,
-              messageDetails.text
-            );
+      //     socket.emit('existing_messages', messages);
+      //   } catch (error) {
+      //     console.error('Error fetching previous messages:', error);
+      //     socket.emit('error', 'Failed to fetch previous messages');
+      //   }
+      // });
 
-            await newMessage.save();
-            this.io.to(messageDetails.chatId).emit('new_message', newMessage);
-          } catch (error) {
-            console.error('Error sending message:', error);
-            socket.emit('error', 'Failed to send message');
+      socket.on('chat_message', async ({ room, message, userName }) => {
+        try {
+          // Encontre a sala pelo nome para obter o ObjectId
+          const roomObj = await this.chatRoomRepository.findRoomByName(room);
+          if (!roomObj) {
+            console.error('Room not found');
+            socket.emit('error', 'Room not found');
+            return;
           }
+
+          // Substitua '' por um identificador válido do usuário
+          if (!userName) {
+            console.error('senderId is required');
+            socket.emit('error', 'senderId is required');
+            return;
+          }
+
+          // Método para obter o ID do usuário pelo userName
+          const user = await this.userRepository.findUserByUserName(userName);
+          if (!user) {
+            console.error('User not found');
+            socket.emit('error', 'User not found');
+            return;
+          }
+
+          // Agora que tem o ID do usuário, pode salvar a mensagem com todos os campos necessários
+          await this.messageRepository.addMessage(
+            roomObj._id,
+            user._id,
+            message
+          );
+
+          // Agora que tem o ID do usuário, pode salvar a mensagem com todos os campos necessários
+          // await this.messageRepository.addMessage(room, userName, message);
+
+          // Emitir a mensagem para a sala
+          this.io.to(room).emit('chat_message', { userName, message });
+        } catch (error) {
+          console.error('Error saving message:', error);
+          socket.emit('error', 'Failed to save message');
         }
-      );
+      });
+
+      // socket.on('send_message', async ({ chatId, senderId, text }) => {
+      //   try {
+      //     const newMessage = await this.messageRepository.addMessage(
+      //       chatId,
+      //       senderId,
+      //       text
+      //     );
+      //     this.io.to(chatId).emit('new_message', newMessage);
+      //   } catch (error) {
+      //     console.error('Error sending message:', error);
+      //     socket.emit('error', 'Failed to send message');
+      //   }
+      // });
+
+      // socket.on('listMessagesByChatId', async (chatId: string) => {
+      //   try {
+      //     const messages =
+      //       await this.messageRepository.listMessagesByChatId(chatId);
+      //     socket.emit('chat_messages', messages);
+      //   } catch (error) {
+      //     console.error('Error fetching messages:', error);
+      //     socket.emit('error', 'Failed to fetch messages');
+      //   }
+      // });
 
       socket.on('disconnect', () => {
         console.log('A user has disconnected');

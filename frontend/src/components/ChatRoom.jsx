@@ -1,5 +1,4 @@
-// ChatRoom.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 function ChatRoom({ socket, userName }) {
@@ -12,6 +11,13 @@ function ChatRoom({ socket, userName }) {
 
     socket.on("chat_message", (data) => {
       setMessages((prevMessages) => [...prevMessages, data]);
+      console.log(data);
+    });
+
+    // Escuchar por los mensajes existentes en la sala al momento de unirse
+    socket.on("existing_messages", (existingMessages) => {
+      console.log(existingMessages, "chatRoomsocket");
+      setMessages(existingMessages); // Establece los mensajes existentes
     });
 
     return () => {
@@ -19,16 +25,16 @@ function ChatRoom({ socket, userName }) {
     };
   }, [roomName, socket]);
 
-  const sendMessage = useCallback(() => {
-    if (message !== "") {
+  const sendMessage = () => {
+    if (!message) {
       socket.emit("chat_message", {
         room: roomName,
         message,
         userName: userName,
-      }); // Ajusta según cómo manejes el nombre de usuario
+      });
       setMessage("");
     }
-  }, [message, roomName, socket, userName]);
+  };
 
   return (
     <div>
@@ -43,7 +49,7 @@ function ChatRoom({ socket, userName }) {
       <div>
         {messages.map((msg, index) => (
           <p key={index}>
-            <b>{msg.userName}:</b> {msg.message}
+            <b>{msg.userName}:</b> {msg.text}
           </p>
         ))}
       </div>
